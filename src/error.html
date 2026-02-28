@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="pt-PT">
+<head>
+	<meta charset="utf-8" />
+	<meta name="viewport" content="width=device-width, initial-scale=1" />
+	<title>Erro Crítico — Nexo</title>
+	<style>
+		* { margin: 0; padding: 0; box-sizing: border-box; }
+		body {
+			background: #0a0a0f;
+			color: #e0e0e0;
+			font-family: 'JetBrains Mono', 'Consolas', monospace;
+			display: flex;
+			align-items: center;
+			justify-content: center;
+			min-height: 100vh;
+			padding: 2rem;
+		}
+		.container {
+			max-width: 480px;
+			text-align: center;
+			border: 1px solid #2a2a3a;
+			padding: 3rem 2rem;
+			background: #12121a;
+		}
+		h1 {
+			font-family: 'Orbitron', monospace;
+			font-size: 2.5rem;
+			color: #ff3366;
+			text-transform: uppercase;
+			letter-spacing: 0.1em;
+			margin-bottom: 1rem;
+			text-shadow: -2px 0 #ff00ff, 2px 0 #00d4ff;
+		}
+		p {
+			color: #6b7280;
+			font-size: 0.875rem;
+			line-height: 1.6;
+			margin-bottom: 1.5rem;
+		}
+		a {
+			display: inline-block;
+			color: #00ff88;
+			border: 2px solid #00ff88;
+			padding: 0.75rem 1.5rem;
+			text-decoration: none;
+			text-transform: uppercase;
+			font-size: 0.875rem;
+			letter-spacing: 0.1em;
+			transition: all 150ms;
+		}
+		a:hover {
+			background: #00ff88;
+			color: #0a0a0f;
+			box-shadow: 0 0 10px #00ff88, 0 0 20px #00ff8860;
+		}
+		.prompt {
+			color: #00ff88;
+			font-size: 0.75rem;
+			margin-bottom: 2rem;
+		}
+	</style>
+</head>
+<body>
+	<div class="container">
+		<h1>Erro Crítico</h1>
+		<p class="prompt">> erro fatal do sistema. ligação comprometida.</p>
+		<p>Ocorreu um erro inesperado. Tenta recarregar a página ou voltar ao início.</p>
+		<a href="/">Voltar ao Início</a>
+	</div>
+</body>
+</html>

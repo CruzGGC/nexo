@@ -1,0 +1,386 @@
+@import 'tailwindcss';
+
+/* ============================================================
+   NEXO 2.0 — Cyberpunk / Glitch Design System
+   ============================================================ */
+
+@theme {
+	/* ---- Colors ---- */
+	--color-background: #0a0a0f;
+	--color-foreground: #e0e0e0;
+	--color-card: #12121a;
+	--color-muted: #1c1c2e;
+	--color-muted-foreground: #6b7280;
+	--color-accent: #00ff88;
+	--color-accent-secondary: #ff00ff;
+	--color-accent-tertiary: #00d4ff;
+	--color-border: #2a2a3a;
+	--color-input: #12121a;
+	--color-ring: #00ff88;
+	--color-destructive: #ff3366;
+
+	/* ---- Font Families ---- */
+	--font-heading: 'Orbitron', 'Share Tech Mono', monospace;
+	--font-body: 'JetBrains Mono', 'Fira Code', 'Consolas', monospace;
+	--font-accent: 'Share Tech Mono', monospace;
+
+	/* ---- Radius ---- */
+	--radius-none: 0px;
+	--radius-sm: 2px;
+	--radius-base: 4px;
+
+	/* ---- Animations ---- */
+	--animate-blink: blink 1s step-end infinite;
+	--animate-glitch: glitch 0.3s ease-in-out;
+	--animate-glitch-slow: glitch 3s ease-in-out infinite;
+	--animate-scanline: scanline 8s linear infinite;
+	--animate-rgb-shift: rgbShift 2s ease-in-out infinite;
+	--animate-pulse-glow: pulseGlow 2s ease-in-out infinite;
+	--animate-flicker: flicker 4s linear infinite;
+
+	@keyframes blink {
+		50% {
+			opacity: 0;
+		}
+	}
+
+	@keyframes glitch {
+		0%,
+		100% {
+			transform: translate(0);
+		}
+		20% {
+			transform: translate(-2px, 2px);
+		}
+		40% {
+			transform: translate(2px, -2px);
+		}
+		60% {
+			transform: translate(-1px, -1px);
+		}
+		80% {
+			transform: translate(1px, 1px);
+		}
+	}
+
+	@keyframes scanline {
+		0% {
+			transform: translateY(-100%);
+		}
+		100% {
+			transform: translateY(100vh);
+		}
+	}
+
+	@keyframes rgbShift {
+		0%,
+		100% {
+			text-shadow:
+				-2px 0 #ff00ff,
+				2px 0 #00d4ff;
+		}
+		50% {
+			text-shadow:
+				2px 0 #ff00ff,
+				-2px 0 #00d4ff;
+		}
+	}
+
+	@keyframes pulseGlow {
+		0%,
+		100% {
+			box-shadow:
+				0 0 5px #00ff88,
+				0 0 10px #00ff8840;
+		}
+		50% {
+			box-shadow:
+				0 0 10px #00ff88,
+				0 0 20px #00ff8860,
+				0 0 40px #00ff8830;
+		}
+	}
+
+	@keyframes flicker {
+		0%,
+		19.999%,
+		22%,
+		62.999%,
+		64%,
+		64.999%,
+		70%,
+		100% {
+			opacity: 1;
+		}
+		20%,
+		21.999%,
+		63%,
+		63.999%,
+		65%,
+		69.999% {
+			opacity: 0.33;
+		}
+	}
+
+	@keyframes glitchClip {
+		0% {
+			clip-path: inset(40% 0 61% 0);
+		}
+		20% {
+			clip-path: inset(92% 0 1% 0);
+		}
+		40% {
+			clip-path: inset(43% 0 1% 0);
+		}
+		60% {
+			clip-path: inset(25% 0 58% 0);
+		}
+		80% {
+			clip-path: inset(54% 0 7% 0);
+		}
+		100% {
+			clip-path: inset(58% 0 43% 0);
+		}
+	}
+
+	/* -- Pop-in (for game marks, hits, etc.) -- */
+	--animate-pop: popIn 0.25s cubic-bezier(0.175, 0.885, 0.32, 1.275);
+	--animate-hit-flash: hitFlash 0.4s ease-out;
+	--animate-shimmer: shimmer 1.5s infinite linear;
+
+	@keyframes popIn {
+		0% {
+			transform: scale(0);
+			opacity: 0;
+		}
+		100% {
+			transform: scale(1);
+			opacity: 1;
+		}
+	}
+
+	@keyframes hitFlash {
+		0% {
+			background-color: rgba(255, 51, 102, 0.4);
+		}
+		100% {
+			background-color: transparent;
+		}
+	}
+
+	@keyframes shimmer {
+		0% {
+			background-position: -200% 0;
+		}
+		100% {
+			background-position: 200% 0;
+		}
+	}
+}
+
+/* ============================================================
+   Base Styles
+   ============================================================ */
+
+@layer base {
+	body {
+		background-color: var(--color-background);
+		color: var(--color-foreground);
+		font-family: var(--font-body);
+	}
+
+	::selection {
+		background-color: #00ff8830;
+		color: #00ff88;
+	}
+
+	::-webkit-scrollbar {
+		width: 6px;
+	}
+
+	::-webkit-scrollbar-track {
+		background: var(--color-background);
+	}
+
+	::-webkit-scrollbar-thumb {
+		background: var(--color-border);
+		border-radius: 0;
+	}
+
+	::-webkit-scrollbar-thumb:hover {
+		background: var(--color-accent);
+	}
+
+	h1,
+	h2,
+	h3,
+	h4,
+	h5,
+	h6 {
+		font-family: var(--font-heading);
+		text-transform: uppercase;
+	}
+
+	h1 {
+		letter-spacing: 0.15em;
+	}
+
+	h2 {
+		letter-spacing: 0.1em;
+	}
+
+	h3 {
+		letter-spacing: 0.05em;
+	}
+}
+
+/* ============================================================
+   Cyber Utilities (via @utility for Tailwind v4)
+   ============================================================ */
+
+/* -- Chamfered corners (clip-path) -- */
+@utility cyber-chamfer {
+	clip-path: polygon(
+		0 10px,
+		10px 0,
+		calc(100% - 10px) 0,
+		100% 10px,
+		100% calc(100% - 10px),
+		calc(100% - 10px) 100%,
+		10px 100%,
+		0 calc(100% - 10px)
+	);
+}
+
+@utility cyber-chamfer-sm {
+	clip-path: polygon(
+		0 6px,
+		6px 0,
+		calc(100% - 6px) 0,
+		100% 6px,
+		100% calc(100% - 6px),
+		calc(100% - 6px) 100%,
+		6px 100%,
+		0 calc(100% - 6px)
+	);
+}
+
+@utility cyber-chamfer-lg {
+	clip-path: polygon(
+		0 16px,
+		16px 0,
+		calc(100% - 16px) 0,
+		100% 16px,
+		100% calc(100% - 16px),
+		calc(100% - 16px) 100%,
+		16px 100%,
+		0 calc(100% - 16px)
+	);
+}
+
+/* -- Neon glow effects -- */
+@utility cyber-glow {
+	box-shadow:
+		0 0 5px #00ff88,
+		0 0 10px #00ff8840;
+}
+
+@utility cyber-glow-sm {
+	box-shadow:
+		0 0 3px #00ff88,
+		0 0 6px #00ff8830;
+}
+
+@utility cyber-glow-lg {
+	box-shadow:
+		0 0 10px #00ff88,
+		0 0 20px #00ff8860,
+		0 0 40px #00ff8830;
+}
+
+@utility cyber-glow-secondary {
+	box-shadow:
+		0 0 5px #ff00ff,
+		0 0 20px #ff00ff60;
+}
+
+@utility cyber-glow-tertiary {
+	box-shadow:
+		0 0 5px #00d4ff,
+		0 0 20px #00d4ff60;
+}
+
+/* -- Text glow -- */
+@utility cyber-text-glow {
+	text-shadow:
+		0 0 7px #00ff88,
+		0 0 10px #00ff8860;
+}
+
+@utility cyber-text-glow-secondary {
+	text-shadow:
+		0 0 7px #ff00ff,
+		0 0 10px #ff00ff60;
+}
+
+@utility cyber-text-glow-tertiary {
+	text-shadow:
+		0 0 7px #00d4ff,
+		0 0 10px #00d4ff60;
+}
+
+/* -- Background patterns -- */
+@utility cyber-grid {
+	background-image: linear-gradient(rgba(0, 255, 136, 0.03) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(0, 255, 136, 0.03) 1px, transparent 1px);
+	background-size: 50px 50px;
+}
+
+@utility cyber-grid-dense {
+	background-image: linear-gradient(rgba(0, 255, 136, 0.05) 1px, transparent 1px),
+		linear-gradient(90deg, rgba(0, 255, 136, 0.05) 1px, transparent 1px);
+	background-size: 25px 25px;
+}
+
+/* -- Focus ring (accessible + themed) -- */
+@utility cyber-focus {
+	outline: none;
+	box-shadow:
+		0 0 0 2px var(--color-background),
+		0 0 0 4px var(--color-accent),
+		0 0 10px #00ff8840;
+}
+
+/* -- Animation utilities -- */
+@utility cyber-pop {
+	animation: var(--animate-pop);
+}
+
+@utility cyber-hit-flash {
+	animation: var(--animate-hit-flash);
+}
+
+@utility cyber-shimmer {
+	background: linear-gradient(
+		90deg,
+		var(--color-muted) 25%,
+		var(--color-border) 50%,
+		var(--color-muted) 75%
+	);
+	background-size: 200% 100%;
+	animation: var(--animate-shimmer);
+}
+
+/* ============================================================
+   Reduced motion
+   ============================================================ */
+
+@media (prefers-reduced-motion: reduce) {
+	*,
+	*::before,
+	*::after {
+		animation-duration: 0.01ms !important;
+		animation-iteration-count: 1 !important;
+		transition-duration: 0.01ms !important;
+	}
+}
