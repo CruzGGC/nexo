@@ -25,16 +25,21 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const { gameType } = parsed.data!;
+		const username = ((locals.user['username'] as string) || '').trim();
 		const result = await joinQueue(
 			locals.pb,
 			locals.user.id,
-			locals.user.username || locals.user.email,
+			username || 'operador',
 			gameType
 		);
 
 		return json({ success: true, ...result });
 	} catch (err) {
-		console.error('Matchmaking join error:', err);
+		console.error('Matchmaking join error:', {
+			requestId: locals.requestId,
+			userId: locals.user.id,
+			error: err
+		});
 		return json({ success: false, error: 'matchmaking_failed' }, { status: 500 });
 	}
 };
@@ -52,7 +57,11 @@ export const DELETE: RequestHandler = async ({ locals }) => {
 		const left = await leaveQueue(locals.pb, locals.user.id);
 		return json({ success: left });
 	} catch (err) {
-		console.error('Matchmaking leave error:', err);
+		console.error('Matchmaking leave error:', {
+			requestId: locals.requestId,
+			userId: locals.user.id,
+			error: err
+		});
 		return json({ success: false, error: 'leave_failed' }, { status: 500 });
 	}
 };
@@ -70,7 +79,11 @@ export const GET: RequestHandler = async ({ locals }) => {
 		const status = await getQueueStatus(locals.pb, locals.user.id);
 		return json({ success: true, ...status });
 	} catch (err) {
-		console.error('Matchmaking status error:', err);
+		console.error('Matchmaking status error:', {
+			requestId: locals.requestId,
+			userId: locals.user.id,
+			error: err
+		});
 		return json({ success: false, error: 'status_failed' }, { status: 500 });
 	}
 };

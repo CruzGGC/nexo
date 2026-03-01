@@ -37,6 +37,7 @@ export const actions: Actions = {
 			// Create user in PocketBase
 			await locals.pb.collection('users').create({
 				username,
+				name: username,
 				email,
 				password,
 				passwordConfirm

@@ -25,10 +25,11 @@ export const POST: RequestHandler = async ({ request, locals }) => {
 		}
 
 		const { gameType } = parsed.data!;
+		const username = ((locals.user['username'] as string) || '').trim();
 		const result = await createPrivateRoom(
 			locals.pb,
 			locals.user.id,
-			locals.user.username || locals.user.email,
+			username || 'operador',
 			gameType
 		);
 

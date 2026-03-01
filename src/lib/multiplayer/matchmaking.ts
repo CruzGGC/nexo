@@ -13,6 +13,33 @@ import { getGameRules } from './room-engine';
 const queueLocks = new Map<string, Promise<unknown>>();
 const roomCodeLocks = new Map<string, Promise<unknown>>();
 
+interface PocketBaseErrorLike {
+	status?: number;
+	response?: {
+		code?: number;
+		message?: string;
+	};
+	message?: string;
+}
+
+function isNotFoundError(error: unknown): boolean {
+	const pbError = error as PocketBaseErrorLike;
+	return pbError?.status === 404 || pbError?.response?.code === 404;
+}
+
+function logMatchmakingError(event: string, details: Record<string, unknown>, error: unknown): void {
+	const pbError = error as PocketBaseErrorLike;
+	console.error(
+		JSON.stringify({
+			level: 'error',
+			event,
+			...details,
+			error: pbError?.response?.message || pbError?.message || 'unknown_error',
+			ts: new Date().toISOString()
+		})
+	);
+}
+
 async function withLock<T>(map: Map<string, Promise<unknown>>, key: string, fn: () => Promise<T>): Promise<T> {
 	const previous = map.get(key) ?? Promise.resolve();
 	let release: () => void;
@@ -45,39 +72,41 @@ export async function joinQueue(
 	gameType: MultiplayerGameType
 ): Promise<{ queued: boolean; matched: boolean; roomId?: string; entryId?: string }> {
 	return withLock(queueLocks, `join:${userId}`, async () => {
-	// Check if user is already in queue
-	try {
-		const existing = await pb.collection('matchmaking_queue').getFirstListItem(
-			`userId = "${userId}" && status = "queued"`
-		);
+		let existing: { id: string } | null = null;
+
+		try {
+			existing = await pb.collection('matchmaking_queue').getFirstListItem(
+				`userId = "${userId}" && status = "queued"`
+			);
+		} catch (error) {
+			if (!isNotFoundError(error)) {
+				logMatchmakingError('matchmaking_join_lookup_failed', { userId, gameType }, error);
+				throw error;
+			}
+		}
+
 		if (existing) {
-			// Already queued — try to match
 			const matchResult = await tryMatch(pb, existing.id, userId, username, gameType);
 			if (matchResult) {
 				return { queued: false, matched: true, roomId: matchResult };
 			}
 			return { queued: true, matched: false, entryId: existing.id };
 		}
-	} catch {
-		// No existing entry — proceed to create
-	}
 
-	// Create queue entry
-	const entry = await pb.collection('matchmaking_queue').create({
-		userId,
-		username,
-		gameType,
-		status: 'queued',
-		roomId: ''
-	});
+		const entry = await pb.collection('matchmaking_queue').create({
+			userId,
+			username,
+			gameType,
+			status: 'queued',
+			roomId: ''
+		});
 
-	// Attempt immediate match
-	const matchResult = await tryMatch(pb, entry.id, userId, username, gameType);
-	if (matchResult) {
-		return { queued: false, matched: true, roomId: matchResult };
-	}
+		const matchResult = await tryMatch(pb, entry.id, userId, username, gameType);
+		if (matchResult) {
+			return { queued: false, matched: true, roomId: matchResult };
+		}
 
-	return { queued: true, matched: false, entryId: entry.id };
+		return { queued: true, matched: false, entryId: entry.id };
 	});
 }
 
@@ -93,16 +122,23 @@ async function tryMatch(
 	gameType: MultiplayerGameType
 ): Promise<string | null> {
 	return withLock(queueLocks, `match:${gameType}`, async () => {
-	try {
-		// Find another queued player for the same game type (not this user)
-		const opponent = await pb.collection('matchmaking_queue').getFirstListItem(
-			`gameType = "${gameType}" && status = "queued" && userId != "${userId}"`,
-			{ sort: 'created' } // FIFO — oldest queue entry first
-		);
+		let opponent: Record<string, unknown> | null = null;
+
+		try {
+			opponent = await pb.collection('matchmaking_queue').getFirstListItem(
+				`gameType = "${gameType}" && status = "queued" && userId != "${userId}"`,
+				{ sort: '+created' }
+			);
+		} catch (error) {
+			if (isNotFoundError(error)) {
+				return null;
+			}
+			logMatchmakingError('matchmaking_opponent_lookup_failed', { userId, gameType, entryId }, error);
+			throw error;
+		}
 
 		if (!opponent) return null;
 
-		// Create room
 		const roomCode = generateRoomCode();
 		const players: RoomPlayer[] = [
 			{ userId: opponent['userId'] as string, username: opponent['username'] as string, ready: true },
@@ -123,9 +159,8 @@ async function tryMatch(
 			isPrivate: false
 		});
 
-		// Update both queue entries to matched
 		await Promise.all([
-			pb.collection('matchmaking_queue').update(opponent.id, {
+			pb.collection('matchmaking_queue').update(opponent.id as string, {
 				status: 'matched',
 				roomId: room.id
 			}),
@@ -136,9 +171,6 @@ async function tryMatch(
 		]);
 
 		return room.id;
-	} catch {
-		return null;
-	}
 	});
 }
 
@@ -157,7 +189,11 @@ export async function leaveQueue(
 			status: 'cancelled'
 		});
 		return true;
-	} catch {
+	} catch (error) {
+		if (isNotFoundError(error)) {
+			return true;
+		}
+		logMatchmakingError('matchmaking_leave_failed', { userId }, error);
 		return false;
 	}
 }
@@ -181,7 +217,11 @@ export async function getQueueStatus(
 			roomId: entry['roomId'] as string || undefined,
 			entryId: entry.id
 		};
-	} catch {
+	} catch (error) {
+		if (!isNotFoundError(error)) {
+			logMatchmakingError('matchmaking_status_failed', { userId }, error);
+			throw error;
+		}
 		return { status: 'none' };
 	}
 }
@@ -228,37 +268,38 @@ export async function joinRoomByCode(
 	roomCode: string
 ): Promise<{ success: boolean; roomId?: string; error?: string }> {
 	return withLock(roomCodeLocks, `room:${roomCode}`, async () => {
-	try {
-		const room = await pb.collection('rooms').getFirstListItem(
-			`roomCode = "${roomCode}" && status = "waiting"`
-		);
+		try {
+			const room = await pb.collection('rooms').getFirstListItem(
+				`roomCode = "${roomCode}" && status = "waiting"`
+			);
 
-		const players: RoomPlayer[] = typeof room['players'] === 'string'
-			? JSON.parse(room['players'] as string)
-			: room['players'] as RoomPlayer[];
+			const players: RoomPlayer[] = typeof room['players'] === 'string'
+				? JSON.parse(room['players'] as string)
+				: room['players'] as RoomPlayer[];
 
-		// Check if already in room
-		if (players.some(p => p.userId === userId)) {
+			if (players.some(p => p.userId === userId)) {
+				return { success: true, roomId: room.id };
+			}
+
+			if (players.length >= 2) {
+				return { success: false, error: 'room_full' };
+			}
+
+			players.push({ userId, username, ready: false });
+
+			await pb.collection('rooms').update(room.id, {
+				players: JSON.stringify(players),
+				version: (room['version'] as number) + 1
+			});
+
 			return { success: true, roomId: room.id };
+		} catch (error) {
+			if (isNotFoundError(error)) {
+				return { success: false, error: 'room_not_found' };
+			}
+			logMatchmakingError('room_join_failed', { userId, roomCode }, error);
+			return { success: false, error: 'join_failed' };
 		}
-
-		// Check if room is full (max 2 players for our games)
-		if (players.length >= 2) {
-			return { success: false, error: 'room_full' };
-		}
-
-		// Add player
-		players.push({ userId, username, ready: false });
-
-		await pb.collection('rooms').update(room.id, {
-			players: JSON.stringify(players),
-			version: (room['version'] as number) + 1
-		});
-
-		return { success: true, roomId: room.id };
-	} catch {
-		return { success: false, error: 'room_not_found' };
-	}
 	});
 }
 
@@ -316,7 +357,10 @@ export async function getRoomState(
 			roomCode: room['roomCode'] as string,
 			isPrivate: room['isPrivate'] as boolean
 		};
-	} catch {
+	} catch (error) {
+		if (!isNotFoundError(error)) {
+			logMatchmakingError('room_state_failed', { roomId, viewerUserId: viewerUserId ?? null }, error);
+		}
 		return null;
 	}
 }

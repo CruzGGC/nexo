@@ -8,7 +8,7 @@
 	let { data } = $props();
 
 	const profile = $derived(data.profile);
-	const callsign = $derived((profile.name || profile.username || '').trim());
+	const callsign = $derived((profile.username || '').trim());
 
 	function formatDate(dateStr: string): string {
 		if (!dateStr) return '—';

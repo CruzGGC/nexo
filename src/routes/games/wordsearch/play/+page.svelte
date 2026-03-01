@@ -269,7 +269,7 @@
 	function calculateLocalScore(): number {
 		const base = 1000;
 		const timePenalty = Math.max(0, elapsedSeconds - 60);
-		const hintPenalty = hintsUsed * 50;
+		const hintPenalty = hintsUsed * 75;
 		return Math.max(0, base - timePenalty - hintPenalty);
 	}
 
@@ -284,23 +284,45 @@
 		initializeGame();
 	}
 
-	function handleRevealWord() {
+	async function handleRevealWord() {
 		if (!data.puzzle || isComplete) return;
 
-		// Find first unfound word and mark it
-		for (const w of data.puzzle.words) {
-			if (!foundWords.has(w.word)) {
-				hintsUsed++;
-				// We don't have placement info on client side, just mark as found
-				const newFound = new Set(foundWords);
-				newFound.add(w.word);
-				foundWords = newFound;
+		try {
+			const res = await fetch('/api/wordsearch/hint', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					mode: data.mode,
+					difficulty: data.difficulty,
+					puzzleSeed: data.puzzleSeed,
+					foundWords: Array.from(foundWords)
+				})
+			});
 
-				if (newFound.size >= totalCount) {
-					handleCompletion();
-				}
-				break;
+			if (!res.ok) return;
+
+			const result = await res.json();
+			if (!result.success || typeof result.word !== 'string' || !Array.isArray(result.cells)) return;
+
+			if (foundWords.has(result.word)) return;
+
+			const newFound = new Set(foundWords);
+			newFound.add(result.word);
+			foundWords = newFound;
+
+			const newFoundCells = new Set(foundCells);
+			for (const cell of result.cells as CellPosition[]) {
+				newFoundCells.add(`${cell.row},${cell.col}`);
 			}
+			foundCells = newFoundCells;
+
+			hintsUsed++;
+
+			if (newFound.size >= totalCount) {
+				handleCompletion();
+			}
+		} catch {
+			// Keep gameplay uninterrupted on hint API failure
 		}
 	}
 

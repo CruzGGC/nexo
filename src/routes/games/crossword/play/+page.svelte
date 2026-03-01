@@ -354,12 +354,39 @@
 		initializeGame(data.puzzle);
 	}
 
-	function handleRevealLetter() {
-		// This would require the solution — for now, increment hints counter
-		// In a full implementation, we'd fetch the letter from the server
-		if (!selectedCell || !data.puzzle) return;
-		hintsUsed++;
-		// TODO: Implement server-side letter reveal
+	async function handleRevealLetter() {
+		if (!selectedCell || !data.puzzle || isComplete) return;
+
+		const { row, col } = selectedCell;
+
+		try {
+			const res = await fetch('/api/crossword/hint', {
+				method: 'POST',
+				headers: { 'Content-Type': 'application/json' },
+				body: JSON.stringify({
+					mode: data.mode,
+					difficulty: data.difficulty,
+					puzzleSeed: data.puzzleSeed,
+					row,
+					col
+				})
+			});
+
+			if (!res.ok) return;
+
+			const result = await res.json();
+			if (!result.success || typeof result.letter !== 'string') return;
+
+			const solutionLetter = result.letter.toUpperCase();
+			if (playerGrid[row][col] === solutionLetter) return;
+
+			playerGrid[row][col] = solutionLetter;
+			hintsUsed++;
+			advanceToNextCell(row, col);
+			checkCompletion();
+		} catch {
+			// Keep gameplay uninterrupted on hint API failure
+		}
 	}
 
 	// ─── Active clue text ──────────────────────────────

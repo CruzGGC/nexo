@@ -17,6 +17,7 @@
 	} from 'lucide-svelte';
 	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
+	import { onDestroy } from 'svelte';
 
 	// User comes from root layout
 	let user = $derived(page.data.user);
@@ -30,6 +31,7 @@
 	let joinCode = $state('');
 	let errorMessage = $state('');
 	let searchPollTimer: ReturnType<typeof setInterval> | null = null;
+	let pollFailures = $state(0);
 
 	// ─── Find game (matchmaking) ──────────────────────────
 
@@ -48,6 +50,12 @@
 				headers: { 'Content-Type': 'application/json' },
 				body: JSON.stringify({ gameType: selectedGame })
 			});
+
+			if (!res.ok) {
+				errorMessage = m.multi_erro_generico();
+				lobbyMode = 'idle';
+				return;
+			}
 
 			const data = await res.json();
 
@@ -72,20 +80,47 @@
 	}
 
 	function startMatchPoll() {
+		stopMatchPoll();
+		pollFailures = 0;
+
 		searchPollTimer = setInterval(async () => {
 			try {
 				const res = await fetch('/api/matchmaking');
+
+				if (!res.ok) {
+					throw new Error(`status_${res.status}`);
+				}
+
 				const data = await res.json();
+
+				if (!data.success) {
+					throw new Error('poll_failed');
+				}
 
 				if (data.status === 'matched' && data.roomId) {
 					stopMatchPoll();
 					lobbyMode = 'idle';
 					await goto(`/multiplayer/room/${data.roomId}`);
+					return;
 				}
+
+				if (data.status === 'none') {
+					stopMatchPoll();
+					lobbyMode = 'idle';
+					errorMessage = m.multi_erro_generico();
+					return;
+				}
+
+				pollFailures = 0;
 			} catch {
-				// Keep polling
+				pollFailures++;
+				if (pollFailures >= 3) {
+					stopMatchPoll();
+					lobbyMode = 'idle';
+					errorMessage = m.multi_erro_generico();
+				}
 			}
-		}, 2000);
+		}, 3000);
 	}
 
 	function stopMatchPoll() {
@@ -97,6 +132,7 @@
 
 	async function cancelSearch() {
 		stopMatchPoll();
+		pollFailures = 0;
 
 		try {
 			await fetch('/api/matchmaking', { method: 'DELETE' });
@@ -106,6 +142,10 @@
 
 		lobbyMode = 'idle';
 	}
+
+	onDestroy(() => {
+		stopMatchPoll();
+	});
 
 	// ─── Create private room ──────────────────────────────
 

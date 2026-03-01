@@ -74,6 +74,7 @@
 	let userId = $derived(user?.id ?? '');
 	let isWinner = $derived(room?.winner === userId);
 	let isDraw = $derived(room?.isDraw ?? false);
+	let currentPlayer = $derived(room?.players.find(p => p.userId === userId));
 	let winnerPlayer = $derived(room?.players.find(p => p.userId === room?.winner));
 	let opponentPlayer = $derived(room?.players.find(p => p.userId !== userId));
 
@@ -308,7 +309,7 @@
 								<div class="flex items-center justify-between border border-border/50 bg-card/50 px-4 py-3">
 									<div class="text-left">
 										<p class="font-body text-sm font-medium text-foreground">
-											{user?.username ?? '???'}
+											{currentPlayer?.username ?? user?.username ?? '???'}
 										</p>
 									</div>
 									<span class="font-accent text-xs text-muted-foreground">vs</span>
@@ -321,7 +322,7 @@
 
 								{#if winnerPlayer}
 									<p class="font-accent text-xs uppercase tracking-wider text-muted-foreground">
-										Vencedor: <span class="text-accent">{winnerPlayer.username}</span>
+										{m.leaderboard_jogador()}: <span class="text-accent">{winnerPlayer.username}</span>
 									</p>
 								{/if}
 

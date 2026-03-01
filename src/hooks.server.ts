@@ -61,7 +61,9 @@ const RATE_LIMITS: Array<{ prefix: string; max: number; windowMs: number }> = [
 	{ prefix: '/api/matchmaking', max: 20, windowMs: 60_000 },
 	{ prefix: '/api/scores', max: 15, windowMs: 60_000 },
 	{ prefix: '/api/rooms', max: 30, windowMs: 60_000 },
+	{ prefix: '/api/crossword/hint', max: 30, windowMs: 60_000 },
 	{ prefix: '/api/crossword/validate', max: 30, windowMs: 60_000 },
+	{ prefix: '/api/wordsearch/hint', max: 30, windowMs: 60_000 },
 	{ prefix: '/api/wordsearch/validate', max: 30, windowMs: 60_000 }
 ];
 
@@ -83,36 +85,8 @@ export const handle: Handle = async ({ event, resolve }) => {
 	// Generate request ID for structured logging
 	event.locals.requestId = crypto.randomUUID();
 
-	// ── Rate limiting ──
 	const ip = getClientIP(request);
 	const pathname = url.pathname;
-
-	for (const rule of RATE_LIMITS) {
-		if (pathname.startsWith(rule.prefix)) {
-			const key = `${ip}:${rule.prefix}`;
-			if (isRateLimited(key, rule.max, rule.windowMs)) {
-				console.warn(
-					JSON.stringify({
-						level: 'warn',
-						event: 'rate_limited',
-						ip,
-						path: pathname,
-						requestId: event.locals.requestId,
-						ts: new Date().toISOString()
-					})
-				);
-				return new Response(JSON.stringify({ error: 'Too many requests' }), {
-					status: 429,
-					headers: {
-						'Content-Type': 'application/json',
-						'Retry-After': '60',
-						...SECURITY_HEADERS
-					}
-				});
-			}
-			break; // Only match first rule
-		}
-	}
 
 	// ── PocketBase auth ──
 	event.locals.pb = new PocketBase(POCKETBASE_URL);
@@ -128,6 +102,46 @@ export const handle: Handle = async ({ event, resolve }) => {
 	} catch (_) {
 		event.locals.pb.authStore.clear();
 		event.locals.user = null;
+	}
+
+	// ── Rate limiting ──
+	for (const rule of RATE_LIMITS) {
+		if (!pathname.startsWith(rule.prefix)) continue;
+
+		const actorKey = event.locals.user?.id
+			? `user:${event.locals.user.id}`
+			: `ip:${ip}`;
+		const rateLimitKey = `${actorKey}:${request.method}:${rule.prefix}`;
+
+		let maxRequests = rule.max;
+		if (rule.prefix === '/api/matchmaking' && request.method === 'GET') {
+			maxRequests = 90;
+		}
+
+		if (isRateLimited(rateLimitKey, maxRequests, rule.windowMs)) {
+			console.warn(
+				JSON.stringify({
+					level: 'warn',
+					event: 'rate_limited',
+					ip,
+					userId: event.locals.user?.id ?? null,
+					path: pathname,
+					method: request.method,
+					requestId: event.locals.requestId,
+					ts: new Date().toISOString()
+				})
+			);
+			return new Response(JSON.stringify({ error: 'Too many requests' }), {
+				status: 429,
+				headers: {
+					'Content-Type': 'application/json',
+					'Retry-After': '60',
+					...SECURITY_HEADERS
+				}
+			});
+		}
+
+		break;
 	}
 
 	// ── Resolve request ──
